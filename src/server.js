@@ -14,6 +14,7 @@ const medicamentoRoutes = require('./routes/medicamentoRoutes');
 const pedidoRoutes = require('./routes/pedidoRoutes');
 const farmaciaRoutes = require('./routes/farmaciaRoutes');
 const enderecoRoutes = require('./routes/enderecoRoutes');
+const avaliacaoRoutes = require('./routes/avaliacaoRoutes');
 const app = express();
 
 // Middlewares (configurações que rodam em toda requisição)
@@ -32,6 +33,7 @@ app.use('/api/medicamentos', medicamentoRoutes);
 app.use('/api/pedidos', pedidoRoutes);
 app.use('/api/farmacias', farmaciaRoutes);
 app.use('/api/enderecos', enderecoRoutes);
+app.use('/api/avaliacoes', avaliacaoRoutes);
 
 // Inicia o servidor
 const PORT = process.env.PORT || 3000;
