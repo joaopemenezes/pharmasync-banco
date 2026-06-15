@@ -11,6 +11,7 @@ require('./config/database');
 // importa as rotas
 const usuarioRoutes = require('./routes/usuarioRoutes');
 const medicamentoRoutes = require('./routes/medicamentoRoutes');
+const pedidoRoutes = require('./routes/pedidoRoutes');
 const app = express();
 
 // Middlewares (configurações que rodam em toda requisição)
@@ -26,6 +27,7 @@ app.get('/', (req, res) => {
 // tudo que começar com /api/usuarios vai pro usuarioRoutes
 app.use('/api/usuarios', usuarioRoutes);
 app.use('/api/medicamentos', medicamentoRoutes);
+app.use('/api/pedidos', pedidoRoutes);
 
 // Inicia o servidor
 const PORT = process.env.PORT || 3000;
