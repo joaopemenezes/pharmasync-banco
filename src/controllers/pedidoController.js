@@ -157,5 +157,106 @@ async function criarPedido(req, res) {
     conexao.release();
   }
 }
+// =====================================================
+//  LISTAR PEDIDOS DE UM USUÁRIO (UC-013)
+// =====================================================
+async function listarPedidos(req, res) {
+  try {
+    const { consumidor_id } = req.query;
+    if (!consumidor_id) {
+      return res.status(400).json({ erro: 'Informe o consumidor_id.' });
+    }
 
-module.exports = { criarPedido };
+    const [pedidos] = await db.query(
+      `SELECT p.id, p.numero_pedido, p.status, p.tipo_entrega, p.forma_pagamento,
+              p.total_centavos, p.criado_em, f.nome_fantasia AS farmacia
+       FROM pedidos p
+       JOIN farmacias f ON f.id = p.farmacia_id
+       WHERE p.consumidor_id = ? AND p.deletado_em IS NULL
+       ORDER BY p.criado_em DESC`,
+      [consumidor_id]
+    );
+
+    return res.status(200).json({ total: pedidos.length, pedidos });
+  } catch (err) {
+    console.error('Erro ao listar pedidos:', err);
+    return res.status(500).json({ erro: 'Erro interno do servidor.' });
+  }
+}
+
+// =====================================================
+//  DETALHAR UM PEDIDO (com seus itens)
+// =====================================================
+async function detalharPedido(req, res) {
+  try {
+    const { id } = req.params;
+
+    const [pedidos] = await db.query(
+      `SELECT p.*, f.nome_fantasia AS farmacia, u.nome AS cliente
+       FROM pedidos p
+       JOIN farmacias f ON f.id = p.farmacia_id
+       JOIN usuarios u ON u.id = p.consumidor_id
+       WHERE p.id = ? AND p.deletado_em IS NULL`,
+      [id]
+    );
+
+    if (pedidos.length === 0) {
+      return res.status(404).json({ erro: 'Pedido nao encontrado.' });
+    }
+
+    const [itens] = await db.query(
+      `SELECT i.quantidade, i.preco_unit_centavos, i.subtotal_centavos,
+              m.nome_comercial
+       FROM itens_pedido i
+       JOIN medicamentos m ON m.id = i.medicamento_id
+       WHERE i.pedido_id = ?`,
+      [id]
+    );
+
+    const pedido = pedidos[0];
+    pedido.itens = itens;
+
+    return res.status(200).json(pedido);
+  } catch (err) {
+    console.error('Erro ao detalhar pedido:', err);
+    return res.status(500).json({ erro: 'Erro interno do servidor.' });
+  }
+}
+
+// =====================================================
+//  ATUALIZAR STATUS DO PEDIDO (UC-013)
+//  Usado pela farmácia pra avançar o pedido.
+// =====================================================
+async function atualizarStatus(req, res) {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    const statusValidos = [
+      'AGUARDANDO_PAGAMENTO', 'AGUARDANDO_CONFIRMACAO', 'CONFIRMADO',
+      'EM_SEPARACAO', 'SAIU_PARA_ENTREGA', 'PRONTO_PARA_RETIRADA',
+      'ENTREGUE', 'CANCELADO'
+    ];
+
+    if (!status || !statusValidos.includes(status)) {
+      return res.status(400).json({
+        erro: 'Status invalido. Valores aceitos: ' + statusValidos.join(', ')
+      });
+    }
+
+    const [resultado] = await db.query(
+      'UPDATE pedidos SET status = ? WHERE id = ? AND deletado_em IS NULL',
+      [status, id]
+    );
+
+    if (resultado.affectedRows === 0) {
+      return res.status(404).json({ erro: 'Pedido nao encontrado.' });
+    }
+
+    return res.status(200).json({ mensagem: 'Status atualizado!', id: Number(id), novo_status: status });
+  } catch (err) {
+    console.error('Erro ao atualizar status:', err);
+    return res.status(500).json({ erro: 'Erro interno do servidor.' });
+  }
+}
+module.exports = { criarPedido, listarPedidos, detalharPedido, atualizarStatus };
