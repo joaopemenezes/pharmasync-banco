@@ -3,10 +3,11 @@
 
 const express = require('express');
 const router = express.Router();
-const { cadastrarUsuario, listarUsuarios } = require('../controllers/usuarioController');
+const { cadastrarUsuario, listarUsuarios, login } = require('../controllers/usuarioController');
 
-// POST /api/usuarios  -> cadastra um novo usuário (UC-001)
 router.post('/', cadastrarUsuario);
+// POST /api/usuarios/login -> faz login e devolve o token (UC-002)
+router.post('/login', login);
 
 // GET /api/usuarios   -> lista os usuários (auxiliar, pra testar)
 router.get('/', listarUsuarios);

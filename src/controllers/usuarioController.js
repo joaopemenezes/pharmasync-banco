@@ -2,6 +2,7 @@
 // Contém a lógica de cada ação relacionada a usuários (UC-001)
 
 const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 const db = require('../config/database');
 const { cpfValido, emailValido, senhaForte, maiorDeIdade } = require('../utils/validacoes');
 
@@ -90,5 +91,91 @@ async function listarUsuarios(req, res) {
     return res.status(500).json({ erro: 'Erro interno do servidor.' });
   }
 }
+// =====================================================
+//  LOGIN (UC-002)
+//  Recebe email e senha, confere, e devolve um token JWT.
+//  Trata bloqueio apos 5 tentativas erradas (RN-003).
+// =====================================================
+async function login(req, res) {
+  try {
+    const { email, senha } = req.body;
 
-module.exports = { cadastrarUsuario, listarUsuarios };
+    // 1) valida campos obrigatorios
+    if (!email || !senha) {
+      return res.status(400).json({ erro: 'Email e senha sao obrigatorios.' });
+    }
+
+    // 2) busca o usuario pelo email (respeitando soft delete)
+    const [usuarios] = await db.query(
+      'SELECT id, nome, email, senha_hash, perfil, status FROM usuarios WHERE email = ? AND deletado_em IS NULL',
+      [email]
+    );
+
+    // 3) verifica tentativas recentes erradas (RN-003: 5 erros = bloqueio 15 min)
+    const [tentativas] = await db.query(
+      `SELECT COUNT(*) AS total FROM tentativas_login
+       WHERE email = ? AND sucesso = 0 AND tentado_em > (NOW() - INTERVAL 15 MINUTE)`,
+      [email]
+    );
+    if (tentativas[0].total >= 5) {
+      return res.status(429).json({
+        erro: 'Muitas tentativas falhas. Tente novamente em 15 minutos.'
+      });
+    }
+
+    // funcao auxiliar pra registrar a tentativa
+    const registrarTentativa = async (sucesso) => {
+      await db.query(
+        'INSERT INTO tentativas_login (email, sucesso, ip) VALUES (?, ?, ?)',
+        [email, sucesso ? 1 : 0, req.ip || null]
+      );
+    };
+
+    // 4) se nao achou o usuario, registra falha e responde generico
+    if (usuarios.length === 0) {
+      await registrarTentativa(false);
+      return res.status(401).json({ erro: 'Email ou senha incorretos.' });
+    }
+
+    const usuario = usuarios[0];
+
+    // 5) compara a senha enviada com o hash guardado (bcrypt)
+    const senhaConfere = await bcrypt.compare(senha, usuario.senha_hash);
+    if (!senhaConfere) {
+      await registrarTentativa(false);
+      return res.status(401).json({ erro: 'Email ou senha incorretos.' });
+    }
+
+    // 6) verifica se a conta esta ativa
+    if (usuario.status === 'BLOQUEADO') {
+      return res.status(403).json({ erro: 'Conta bloqueada. Contate o suporte.' });
+    }
+
+    // 7) deu tudo certo: registra sucesso e gera o token JWT
+    await registrarTentativa(true);
+
+    const token = jwt.sign(
+      { id: usuario.id, email: usuario.email, perfil: usuario.perfil }, // dados dentro do token
+      process.env.JWT_SECRET,                                            // chave secreta
+      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }                  // validade
+    );
+
+    // 8) responde com o token e os dados do usuario (sem a senha)
+    return res.status(200).json({
+      mensagem: 'Login realizado com sucesso!',
+      token,
+      usuario: {
+        id: usuario.id,
+        nome: usuario.nome,
+        email: usuario.email,
+        perfil: usuario.perfil,
+        status: usuario.status
+      }
+    });
+
+  } catch (err) {
+    console.error('Erro no login:', err);
+    return res.status(500).json({ erro: 'Erro interno do servidor.' });
+  }
+}
+module.exports = { cadastrarUsuario, listarUsuarios, login };
