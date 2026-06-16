@@ -18,6 +18,7 @@ const avaliacaoRoutes = require('./routes/avaliacaoRoutes');
 const cupomRoutes = require('./routes/cupomRoutes');
 const receitaRoutes = require('./routes/receitaRoutes');
 const notaFiscalRoutes = require('./routes/notaFiscalRoutes');
+const cartaoRoutes = require('./routes/cartaoRoutes');
 const app = express();
 
 // Middlewares (configurações que rodam em toda requisição)
@@ -40,7 +41,7 @@ app.use('/api/avaliacoes', avaliacaoRoutes);
 app.use('/api/cupons', cupomRoutes);
 app.use('/api/receitas', receitaRoutes);
 app.use('/api/notas', notaFiscalRoutes);
-
+app.use('/api/cartoes', cartaoRoutes);
 // Inicia o servidor
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
