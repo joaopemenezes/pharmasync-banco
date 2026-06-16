@@ -16,6 +16,7 @@ const farmaciaRoutes = require('./routes/farmaciaRoutes');
 const enderecoRoutes = require('./routes/enderecoRoutes');
 const avaliacaoRoutes = require('./routes/avaliacaoRoutes');
 const cupomRoutes = require('./routes/cupomRoutes');
+const receitaRoutes = require('./routes/receitaRoutes');
 const app = express();
 
 // Middlewares (configurações que rodam em toda requisição)
@@ -36,6 +37,7 @@ app.use('/api/farmacias', farmaciaRoutes);
 app.use('/api/enderecos', enderecoRoutes);
 app.use('/api/avaliacoes', avaliacaoRoutes);
 app.use('/api/cupons', cupomRoutes);
+app.use('/api/receitas', receitaRoutes);
 
 // Inicia o servidor
 const PORT = process.env.PORT || 3000;
